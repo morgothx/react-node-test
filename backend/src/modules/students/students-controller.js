@@ -1,5 +1,5 @@
 const asyncHandler = require("express-async-handler");
-const { getAllStudents, addNewStudent, getStudentDetail, setStudentStatus, updateStudent } = require("./students-service");
+const { getAllStudents, addNewStudent, getStudentDetail, setStudentStatus, updateStudent, deleteStudent } = require("./students-service");
 
 const handleGetAllStudents = asyncHandler(async (req, res) => {
     const { name, class: className, section, roll } = req.query;
@@ -17,6 +17,12 @@ const handleUpdateStudent = asyncHandler(async (req, res) => {
     const { id: userId } = req.params;
     const payload = req.body;
     const message = await updateStudent({ ...payload, userId });
+    res.json(message);
+});
+
+const handleDeleteStudent = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const message = await deleteStudent(id);
     res.json(message);
 });
 
@@ -40,4 +46,5 @@ module.exports = {
     handleAddStudent,
     handleStudentStatus,
     handleUpdateStudent,
+    handleDeleteStudent,
 };

@@ -98,6 +98,34 @@ const findStudentToSetStatus = async ({ userId, reviewerId, status }) => {
     return rowCount
 }
 
+const deleteStudentById = async (id) => {
+    const query = `
+        WITH target_student AS (
+            SELECT id FROM users WHERE id = $1 AND role_id = 3
+        ), deleted_leave_policies AS (
+            DELETE FROM user_leave_policy
+            WHERE user_id IN (SELECT id FROM target_student)
+        ), deleted_leaves AS (
+            DELETE FROM user_leaves
+            WHERE user_id IN (SELECT id FROM target_student)
+        ), deleted_tokens AS (
+            DELETE FROM user_refresh_tokens
+            WHERE user_id IN (SELECT id FROM target_student)
+        ), deleted_profile AS (
+            DELETE FROM user_profiles
+            WHERE user_id IN (SELECT id FROM target_student)
+        ), deleted_user AS (
+            DELETE FROM users
+            WHERE id IN (SELECT id FROM target_student)
+            RETURNING id
+        )
+        SELECT COUNT(*)::INTEGER AS count FROM deleted_user
+    `;
+    const queryParams = [id];
+    const { rows } = await processDBRequest({ query, queryParams });
+    return rows[0].count;
+}
+
 const findStudentToUpdate = async (paylaod) => {
     const { basicDetails: { name, email }, id } = paylaod;
     const currentDate = new Date();
@@ -117,5 +145,6 @@ module.exports = {
     addOrUpdateStudent,
     findStudentDetail,
     findStudentToSetStatus,
+    deleteStudentById,
     findStudentToUpdate
 };

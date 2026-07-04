@@ -1,5 +1,5 @@
 const { ApiError, sendAccountVerificationEmail } = require("../../utils");
-const { findAllStudents, findStudentDetail, findStudentToSetStatus, addOrUpdateStudent } = require("./students-repository");
+const { findAllStudents, findStudentDetail, findStudentToSetStatus, addOrUpdateStudent, deleteStudentById } = require("./students-repository");
 const { findUserById } = require("../../shared/repository");
 
 const checkStudentId = async (id) => {
@@ -7,6 +7,33 @@ const checkStudentId = async (id) => {
     if (!isStudentFound) {
         throw new ApiError(404, "Student not found");
     }
+}
+
+const getStudentOperationError = (operation, result) => {
+    const message = result?.message;
+    const description = result?.description || "";
+
+    if (message === "Email already exists") {
+        return new ApiError(409, "Email already exists");
+    }
+
+    if (description.includes("user_profiles_class_name_fkey")) {
+        return new ApiError(400, "Class does not exist");
+    }
+
+    if (description.includes("user_profiles_section_name_fkey")) {
+        return new ApiError(400, "Section does not exist");
+    }
+
+    if (description.includes("invalid input syntax for type integer")) {
+        return new ApiError(400, "Roll must be a number");
+    }
+
+    if (description.includes("invalid input syntax for type date")) {
+        return new ApiError(400, "Date fields must be valid dates");
+    }
+
+    return new ApiError(500, message || `Unable to ${operation} student`);
 }
 
 const getAllStudents = async (payload) => {
@@ -35,7 +62,7 @@ const addNewStudent = async (payload) => {
     try {
         const result = await addOrUpdateStudent(payload);
         if (!result.status) {
-            throw new ApiError(500, result.message);
+            throw getStudentOperationError("add", result);
         }
 
         try {
@@ -45,6 +72,10 @@ const addNewStudent = async (payload) => {
             return { message: ADD_STUDENT_AND_BUT_EMAIL_SEND_FAIL }
         }
     } catch (error) {
+        if (error instanceof ApiError) {
+            throw error;
+        }
+
         throw new ApiError(500, "Unable to add student");
     }
 }
@@ -52,10 +83,19 @@ const addNewStudent = async (payload) => {
 const updateStudent = async (payload) => {
     const result = await addOrUpdateStudent(payload);
     if (!result.status) {
-        throw new ApiError(500, result.message);
+        throw getStudentOperationError("update", result);
     }
 
     return { message: result.message };
+}
+
+const deleteStudent = async (id) => {
+    const affectedRow = await deleteStudentById(id);
+    if (affectedRow <= 0) {
+        throw new ApiError(404, "Student not found");
+    }
+
+    return { message: "Student deleted successfully" };
 }
 
 const setStudentStatus = async ({ userId, reviewerId, status }) => {
@@ -75,4 +115,5 @@ module.exports = {
     addNewStudent,
     setStudentStatus,
     updateStudent,
+    deleteStudent,
 };
